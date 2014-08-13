@@ -1,4 +1,3 @@
-#include <glib.h>
 #include <pthread.h>
 #include <string.h>
 
@@ -13,7 +12,9 @@
 const char *GROUP_NAME = "httpserver";
 const char *HOST = "host";
 const char *PORT = "port";
-const char *HELLO_WORD = "<h1>HELLO, WORLD!</h1>";
+const char *INIT_INFO = "If you see this page, Seafile HTTP syncing component works.";
+
+const char *GET_HEAD_COMMIT_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/commit/HEAD";
 
 static void
 load_http_config (HttpServer *htp_server, SeafileSession *session)
@@ -53,11 +54,41 @@ load_http_config (HttpServer *htp_server, SeafileSession *session)
 }
 
 static void
-default_cb(evhtp_request_t *req, void *arg)
+default_cb (evhtp_request_t *req, void *arg)
 {
-    /* Return empty page. */
-    evbuffer_add(req->buffer_out, HELLO_WORD, strlen(HELLO_WORD));
+    evbuffer_add(req->buffer_out, INIT_INFO, strlen(INIT_INFO));
     evhtp_send_reply (req, EVHTP_RES_OK);
+}
+
+static void
+get_head_commit_cb (evhtp_request_t *req, void *arg)
+{
+    SeafileSession *session = arg;
+    char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    char *repo_id = parts[1];
+    SeafRepo *repo = seaf_repo_manager_get_repo(session->repo_mgr, repo_id);
+    if (!repo) {
+        char *error = "Bad repo id\n";
+        seaf_warning ("fetch failed: %s\n", error);
+        evbuffer_add_printf (req->buffer_out, "%s\n", error);
+        evhtp_send_reply(req, EVHTP_RES_BADREQ);
+
+    } else {
+        evbuffer_add_printf(req->buffer_out,
+                            "repo %.8s head commit is %s\n",
+                            repo_id, repo->head->commit_id);
+        seaf_repo_unref (repo);
+        evhtp_send_reply (req, EVHTP_RES_OK);
+    }
+    g_strfreev (parts);
+}
+
+static void
+get_request_init (HttpServer *htp_server)
+{
+    evhtp_set_regex_cb(htp_server->evhtp,
+                       GET_HEAD_COMMIT_REGEX, get_head_commit_cb,
+                       htp_server->seaf_session);
 }
 
 static void *
@@ -67,14 +98,16 @@ http_server_run (void *arg)
     htp_server->evbase = event_base_new();
     htp_server->evhtp = evhtp_new(htp_server->evbase, NULL);
 
-    evhtp_set_gencb(htp_server->evhtp, default_cb, NULL);
-
     if (evhtp_bind_socket(htp_server->evhtp,
                           htp_server->bind_addr,
                           htp_server->bind_port, 128) < 0) {
-        g_warning ("Could not bind socket: %s\n", strerror(errno));
+        seaf_warning ("Could not bind socket: %s\n", strerror(errno));
         exit(-1);
     }
+
+    evhtp_set_gencb(htp_server->evhtp, default_cb, NULL);
+
+    get_request_init(htp_server);
 
     event_base_loop(htp_server->evbase, 0);
 
@@ -93,6 +126,7 @@ seaf_http_server_new (struct _SeafileSession *session)
     http_server->thread_id = 0;
     load_http_config(http_server, session);
     session->http_server = http_server;
+    http_server->seaf_session = session;
     return http_server;
 }
 
@@ -109,7 +143,7 @@ seaf_http_server_start (HttpServer *htp_server)
 int
 seaf_http_server_join (HttpServer *htp_server)
 {
-    if (htp_server->thread_id < 0)
+    if (htp_server->thread_id <= 0)
         return -1;
     return pthread_join (htp_server->thread_id, NULL);
 }
@@ -117,7 +151,7 @@ seaf_http_server_join (HttpServer *htp_server)
 int
 seaf_http_server_detach (HttpServer *htp_server)
 {
-    if (htp_server->thread_id < 0)
+    if (htp_server->thread_id <= 0)
         return -1;
     return pthread_detach (htp_server->thread_id);
 }

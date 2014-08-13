@@ -17,6 +17,7 @@ typedef struct HttpServer {
     evbase_t *evbase;
     evhtp_t *evhtp;
     pthread_t thread_id;
+    struct _SeafileSession *seaf_session;
 }HttpServer;
 
 HttpServer *
