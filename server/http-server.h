@@ -9,6 +9,8 @@
 
 #include <evhtp.h>
 
+#include "block.h"
+
 struct _SeafileSession;
 
 typedef struct HttpServer {
@@ -18,7 +20,25 @@ typedef struct HttpServer {
     evhtp_t *evhtp;
     pthread_t thread_id;
     struct _SeafileSession *seaf_session;
-}HttpServer;
+} HttpServer;
+
+typedef struct SendBlockData {
+    struct _SeafileSession *seaf_session;
+    evhtp_request_t *req;
+    char *block_id;
+    BlockHandle *handle;
+    uint32_t bsize;
+    uint32_t remain;
+
+    char store_id[37];
+    int repo_version;
+
+    bufferevent_data_cb saved_read_cb;
+    bufferevent_data_cb saved_write_cb;
+    bufferevent_event_cb saved_event_cb;
+    void *saved_cb_arg;
+} SendBlockData;
+
 
 HttpServer *
 seaf_http_server_new (struct _SeafileSession *session);
