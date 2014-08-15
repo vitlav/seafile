@@ -16,11 +16,8 @@ const char *PORT = "port";
 const char *INIT_INFO = "If you see this page, Seafile HTTP syncing component works.";
 
 const char *GET_HEAD_COMMIT_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/commit/HEAD";
-
 const char *GET_COMMIT_INFO_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/commit/[\\da-z]{40}";
-
 const char *GET_FS_OBJ_ID_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/fs/.*";
-
 const char *GET_BLOCKT_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/block/[\\da-z]{40}";
 
 static void
@@ -128,7 +125,7 @@ get_fs_obj_id (SeafCommit *commit, void *data, gboolean *stop)
         return FALSE;
     }
     GList **list = (GList **)data;
-    *list = g_list_prepend (*list, g_strdup(commit->root_id));
+    *list = g_list_prepend (*list, g_strdup (commit->root_id));
     return TRUE;
 }
 
@@ -328,8 +325,8 @@ do_block (evhtp_request_t *req, SeafileSession *session,
                   "attachment;filename=\"%s\"", block_id);
     }
     evhtp_headers_add_header (req->headers_out,
-                              evhtp_header_new("Content-Disposition", cont_filename,
-                                               1, 1));
+                              evhtp_header_new ("Content-Disposition", cont_filename,
+                                                1, 1));
 
     snprintf (blk_size, sizeof(blk_size), "%"G_GUINT32_FORMAT"", bsize);
     evhtp_headers_add_header (req->headers_out,
@@ -441,7 +438,7 @@ http_server_run (void *arg)
     if (evhtp_bind_socket(htp_server->evhtp,
                           htp_server->bind_addr,
                           htp_server->bind_port, 128) < 0) {
-        seaf_warning ("Could not bind socket: %s\n", strerror(errno));
+        seaf_warning ("Could not bind socket: %s\n", strerror (errno));
         exit(-1);
     }
 
